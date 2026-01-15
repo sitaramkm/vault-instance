@@ -33,49 +33,23 @@ fi
 # Validate AWS access
 # ------------------------------------------------------------
 
-if ! aws sts get-caller-identity >/dev/null 2>&1; then
+if ! aws sts get-caller-identity --profile "$AWS_PROFILE" >/dev/null 2>&1; then
   echo "ERROR: AWS CLI not authenticated"
   echo "Run 'aws sso login' or configure credentials"
   exit 1
 fi
 
+awscli() {
+  aws --profile "$AWS_PROFILE" --region "$AWS_REGION" "$@"
+}
+
 # ------------------------------------------------------------
 # Token retrieval
 # ------------------------------------------------------------
 
-WHAT="${1:-all}"
 PREFIX="/${RESOURCE_PREFIX}-ssm"
-
-get_token() {
-  local name="$1"
-  aws ssm get-parameter \
-    --name "${PREFIX}/${name}" \
+awscli ssm get-parameter \
+    --name "${PREFIX}/root_token" \
     --with-decryption \
     --query Parameter.Value \
     --output text
-}
-
-case "${WHAT}" in
-  root)
-    echo "ROOT token:"
-    get_token "root_token"
-    ;;
-  demo)
-    echo "DEMO token:"
-    get_token "demo_token"
-    ;;
-  all)
-    echo "ROOT token:"
-    get_token "root_token"
-    echo
-    echo "DEMO token:"
-    get_token "demo_token"
-    ;;
-  *)
-    echo "Usage:"
-    echo "  ./scripts/tokens.sh"
-    echo "  ./scripts/tokens.sh root"
-    echo "  ./scripts/tokens.sh demo"
-    exit 1
-    ;;
-esac

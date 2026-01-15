@@ -95,17 +95,6 @@ POL
 
   vault policy write demo /opt/vault/demo-policy.hcl
 
-  vault token create -policy=demo -ttl=24h -format=json > /opt/vault/demo_token.json
-  demo_token=$(jq -r '.auth.client_token' /opt/vault/demo_token.json)
-
-  aws ssm put-parameter \
-    --region "$region" \
-    --name "$ssm_prefix/demo_token" \
-    --type SecureString \
-    --value "$demo_token" \
-    --overwrite
-
-
   # Seed sample secrets
   vault kv put sample-secrets/demo/hello message="hello from vault demo"
   vault kv put sample-secrets/demo/app username="demo-user" password="demo-pass"

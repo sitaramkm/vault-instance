@@ -60,13 +60,19 @@ if [[ -n "${AWS_REGION:-}" ]]; then
 fi
 
 # Verify AWS login
-if ! aws sts get-caller-identity >/dev/null 2>&1; then
+if ! aws sts get-caller-identity --profile "$AWS_PROFILE" >/dev/null 2>&1; then
   echo "ERROR: AWS CLI is not authenticated."
   echo "Run 'aws sso login' or 'aws configure' and try again."
   exit 1
 fi
 
-ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+awscli() {
+  : "${AWS_REGION:?AWS_REGION must be set}"
+  : "${AWS_PROFILE:?AWS_PROFILE must be set}"
+
+  aws --region "$AWS_REGION" --profile "$AWS_PROFILE" "$@"
+}
+
 REGION="${AWS_REGION:-$(aws configure get region)}"
 
 if [[ -z "${REGION}" ]]; then
@@ -74,8 +80,8 @@ if [[ -z "${REGION}" ]]; then
   exit 1
 fi
 
-echo "AWS Account : ${ACCOUNT_ID}"
-echo "AWS Region  : ${REGION}"
+echo "AWS Profile : ${AWS_PROFILE}"
+echo "AWS Region  : ${AWS_REGION}"
 echo "Resource ID : ${RESOURCE_PREFIX}"
 echo
 
@@ -121,7 +127,7 @@ cleanup_ssm_parameters() {
 
   echo "Cleaning up SSM parameters under ${prefix}"
 
-  PARAMS=$(aws ssm describe-parameters \
+  PARAMS=$(awscli ssm describe-parameters \
     --query "Parameters[?starts_with(Name, '${prefix}')].Name" \
     --output text)
 
@@ -132,7 +138,7 @@ cleanup_ssm_parameters() {
 
   for p in ${PARAMS}; do
     echo "Deleting SSM parameter: ${p}"
-    aws ssm delete-parameter --name "${p}"
+    awscli ssm delete-parameter --name "${p}"
   done
 }
 
@@ -151,6 +157,12 @@ cleanup_more_resources_if_any() {
 create() {
   echo "=== Creating Vault infrastructure ==="
   terraform_apply
+  echo "=== Retrieving Vault info ==="
+  cd "${TERRAFORM_DIR}"
+  terraform output -json > ${TERRAFORM_DIR}/terraform_outputs.json
+  VAULT_URL=$(jq -r ".vault_url.value" terraform_outputs.json)
+  echo "Vault URL: $VAULT_URL"
+  echo "export VAULT_ADDR=\"$VAULT_URL\"" > "${ROOT_DIR}/vault_info.env"
 }
 
 destroy() {
@@ -170,8 +182,17 @@ seed-sample-secrets() {
   "${ROOT_DIR}/scripts/seed_vault.sh" "$@"
 }
 
-tokens() {
-  "${ROOT_DIR}/scripts/tokens.sh" "$@"
+get-token() {
+  local token
+  token="$("${ROOT_DIR}/scripts/tokens.sh")"
+
+  if [[ -z "$token" ]]; then
+    echo "ERROR: Token retrieval returned empty value"
+    exit 1
+  fi  
+  echo "Retrieved Vault token:"
+  echo "$token"
+  echo "export VAULT_TOKEN=\"$token\"" >> "${ROOT_DIR}/vault_info.env"
 }
 
 # ------------------------------------------------------------
@@ -183,14 +204,14 @@ case "${ACTION}" in
   destroy) destroy ;;
   allow) allow "$@" ;;
   seed-sample-secrets) seed-sample-secrets "$@" ;;
-  tokens) tokens "$@" ;;
+  get-token) get-token "$@" ;;
   *)
     echo "Usage:"
     echo "  ./helper/vault.sh create"
     echo "  ./helper/vault.sh destroy"
     echo "  ./helper/vault.sh allow <CIDR>"
     echo "  ./helper/vault.sh seed-sample-secrets"
-    echo "  ./helper/vault.sh tokens [root|demo]"
+    echo "  ./helper/vault.sh get-token"
     exit 1
     ;;
 esac
