@@ -16,7 +16,7 @@ fi
 VAULT_ENV_FILE="${ROOT_DIR}/vault_info.env"
 if [[ -f "$VAULT_ENV_FILE" ]]; then
   source "$VAULT_ENV_FILE"
-
+fi
 
 : "${VAULT_ADDR:?VAULT_ADDR not found. Must be set.}"
 : "${VAULT_TOKEN:?VAULT_TOKEN not found. Must be set.}"

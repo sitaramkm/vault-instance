@@ -173,8 +173,21 @@ destroy() {
 }
 
 allow() {
-  echo "=== Updating allowed CIDRs ==="
-  "${ROOT_DIR}/scripts/cidr_update.sh" "$@"
+  local cidr="${1:-}"
+  if [[ -z "$cidr" ]]; then
+    echo "Usage: $0 allow <CIDR>"
+    exit 1
+  fi
+
+  echo "=== Allowing access from CIDR: ${cidr} ==="
+
+  CIDRS_JSON=$(python3 - "$cidr" <<'PY'
+import json, sys
+print(json.dumps(sys.argv[1:]))
+PY
+)
+  cd "${TERRAFORM_DIR}"
+  terraform apply -var "allowed_additional_cidrs=${CIDRS_JSON}" -auto-approve
 }
 
 seed-sample-secrets() {
