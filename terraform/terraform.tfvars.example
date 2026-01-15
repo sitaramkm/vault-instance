@@ -1,0 +1,24 @@
+region      = "us-east-1"
+aws_profile = "my-corp-profile"
+
+name        = "my-vault-instance01"
+
+# Set configure_route53 = true only if you are able to create A records
+# for the domain_name in your AWS account. 
+configure_route53 = true
+zone_id     = "Z1234567890ABC"
+domain_name = "vault.example.com"
+
+instance_type = "t3.small"
+
+# OPTIONAL: extra allowed CIDRs for HTTPS 
+# Current Local IP /32 will be detected and added automatically
+allowed_additional_cidrs = [
+  # "203.0.113.10/32",
+  # "198.51.100.0/24"
+]
+
+tags = {
+  Owner = "security-arch"
+  Purpose = "demo"
+}
