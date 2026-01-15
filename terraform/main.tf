@@ -26,7 +26,7 @@ provider "aws" {
 }
 
 locals {
-  tags = merge({ Name = var.name }, var.tags)
+  tags = merge({ Name = "${var.resource_prefix}-vault-instance" }, var.tags)
 }
 
 module "tls_dns" {
@@ -73,7 +73,7 @@ locals {
 # Security Groups (NO 0.0.0.0/0 ingress)
 # -----------------------------
 resource "aws_security_group" "alb" {
-  name        = "${var.name}-alb-sg"
+  name        = "${var.resource_prefix}-alb-sg"
   description = "ALB SG (restricted HTTPS)"
   vpc_id      = data.aws_vpc.default.id
   tags        = local.tags
@@ -100,7 +100,7 @@ resource "aws_security_group_rule" "alb_https" {
 }
 
 resource "aws_security_group" "ec2" {
-  name        = "${var.name}-ec2-sg"
+  name        = "${var.resource_prefix}-ec2-sg"
   description = "EC2 SG (Vault only from ALB)"
   vpc_id      = data.aws_vpc.default.id
   tags        = local.tags
@@ -132,7 +132,7 @@ resource "aws_kms_key" "vault_unseal" {
 }
 
 resource "aws_kms_alias" "vault_unseal" {
-  name          = "alias/${var.name}-vault-unseal"
+  name          = "alias/${var.resource_prefix}-vault-unseal"
   target_key_id = aws_kms_key.vault_unseal.key_id
 }
 
@@ -140,7 +140,7 @@ resource "aws_kms_alias" "vault_unseal" {
 # IAM role for EC2 (KMS + SSM Parameter Store)
 # -----------------------------
 resource "aws_iam_role" "vault" {
-  name = "${var.name}-role"
+  name = "${var.resource_prefix}-role"
   tags = local.tags
 
   assume_role_policy = jsonencode({
@@ -154,7 +154,7 @@ resource "aws_iam_role" "vault" {
 }
 
 resource "aws_iam_role_policy" "vault" {
-  name = "${var.name}-policy"
+  name = "${var.resource_prefix}-policy"
   role = aws_iam_role.vault.id
 
   policy = jsonencode({
@@ -172,7 +172,7 @@ resource "aws_iam_role_policy" "vault" {
           "ssm:GetParameter",
           "ssm:GetParameters"
         ]
-        Resource = "arn:aws:ssm:${var.region}:*:parameter/${var.name}/*"
+        Resource = "arn:aws:ssm:${var.region}:*:parameter/${var.resource_prefix}-ssm/*"
       },
       {
         Effect = "Allow"
@@ -196,7 +196,7 @@ resource "aws_iam_role_policy" "vault" {
 }
 
 resource "aws_iam_instance_profile" "vault" {
-  name = "${var.name}-instance-profile"
+  name = "${var.resource_prefix}-instance-profile"
   role = aws_iam_role.vault.name
   tags = local.tags
 }
@@ -230,7 +230,7 @@ resource "aws_instance" "vault" {
     vault_domain  = var.domain_name
     kms_key_id    = aws_kms_key.vault_unseal.key_id
     region        = var.region
-    ssm_prefix    = "/${var.name}"
+    ssm_prefix    = "/${var.resource_prefix}-ssm"
   })
 }
 
@@ -238,7 +238,7 @@ resource "aws_instance" "vault" {
 # ALB + Target Group + Listener
 # -----------------------------
 resource "aws_lb" "vault" {
-  name               = substr("${var.name}-alb", 0, 32)
+  name               = substr("${var.resource_prefix}-alb", 0, 32)
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = local.alb_subnets
@@ -246,7 +246,7 @@ resource "aws_lb" "vault" {
 }
 
 resource "aws_lb_target_group" "vault" {
-  name     = substr("${var.name}-tg", 0, 32)
+  name     = substr("${var.resource_prefix}-tg", 0, 32)
   port     = 8200
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id

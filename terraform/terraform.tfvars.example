@@ -1,8 +1,3 @@
-region      = "us-east-1"
-aws_profile = "my-corp-profile"
-
-name        = "my-vault-instance01"
-
 # Set configure_route53 = true only if you are able to create A records
 # for the domain_name in your AWS account. 
 configure_route53 = true

@@ -1,3 +1,8 @@
+variable "resource_prefix" {
+  type        = string
+  description = "Prefix used for naming all resources"
+}
+
 variable "region" {
   type = string
 }
@@ -5,10 +10,6 @@ variable "region" {
 variable "aws_profile" {
   type        = string
   description = "AWS CLI profile to use for Terraform operations"
-}
-
-variable "name" {
-  type = string
 }
 
 variable "zone_id" {

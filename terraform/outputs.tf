@@ -18,14 +18,14 @@ output "allowed_cidrs_effective" {
 }
 
 output "ssm_demo_token_name" {
-  value = "/${var.name}/demo_token"
+  value = "/${var.resource_prefix}-ssm/demo_token"
 }
 
 output "ssm_root_token_name" {
-  value = "/${var.name}/root_token"
+  value = "/${var.resource_prefix}-ssm/root_token"
 }
 
 output "resource_prefix" {
-  description = "name is used as prefix for all resources. For e.g SSM prefix"
-  value       = "/${var.name}"
+  description = "prefix for all resources. For e.g SSM prefix"
+  value       = "/${var.resource_prefix}"
 }

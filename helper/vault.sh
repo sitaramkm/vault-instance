@@ -1,0 +1,196 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ------------------------------------------------------------
+# vault.sh — Vault lifecycle helper
+#
+# Commands:
+#   ./helper/vault.sh create
+#   ./helper/vault.sh destroy
+#   ./helper/vault.sh allow <CIDR>
+#   ./helper/vault.sh seed-sample-secrets
+#
+# Conventions:
+#   - common.env        → shared config (committed)
+#   - aws.env           → AWS identity + region (gitignored)
+#   - secrets-hub.env   → future use (gitignored)
+# ------------------------------------------------------------
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+TERRAFORM_DIR="${ROOT_DIR}/terraform"
+
+ACTION="${1:-}"
+shift || true
+
+# ------------------------------------------------------------
+# Load environment
+# ------------------------------------------------------------
+
+if [[ ! -f "${ROOT_DIR}/common.env" ]]; then
+  echo "ERROR: common.env not found in repo root"
+  exit 1
+fi
+source "${ROOT_DIR}/common.env"
+
+if [[ -f "${ROOT_DIR}/aws.env" ]]; then
+  source "${ROOT_DIR}/aws.env"
+fi
+
+# ------------------------------------------------------------
+# Validate required variables
+# ------------------------------------------------------------
+
+: "${RESOURCE_PREFIX:?RESOURCE_PREFIX must be set in common.env}"
+
+# Terraform variable injection
+export TF_VAR_resource_prefix="${RESOURCE_PREFIX}"
+
+# ------------------------------------------------------------
+# AWS context handling
+# ------------------------------------------------------------
+
+if [[ -n "${AWS_PROFILE:-}" ]]; then
+  export AWS_PROFILE
+fi
+
+if [[ -n "${AWS_REGION:-}" ]]; then
+  export AWS_REGION
+  export AWS_DEFAULT_REGION="${AWS_REGION}"
+fi
+
+# Verify AWS login
+if ! aws sts get-caller-identity >/dev/null 2>&1; then
+  echo "ERROR: AWS CLI is not authenticated."
+  echo "Run 'aws sso login' or 'aws configure' and try again."
+  exit 1
+fi
+
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+REGION="${AWS_REGION:-$(aws configure get region)}"
+
+if [[ -z "${REGION}" ]]; then
+  echo "ERROR: AWS region not set. Define AWS_REGION in aws.env"
+  exit 1
+fi
+
+echo "AWS Account : ${ACCOUNT_ID}"
+echo "AWS Region  : ${REGION}"
+echo "Resource ID : ${RESOURCE_PREFIX}"
+echo
+
+# ------------------------------------------------------------
+# Terraform variable injection
+# ------------------------------------------------------------
+
+export TF_VAR_resource_prefix="${RESOURCE_PREFIX}"
+
+if [[ -n "${AWS_REGION:-}" ]]; then
+  export TF_VAR_region="${AWS_REGION}"
+fi
+
+if [[ -n "${AWS_PROFILE:-}" ]]; then
+  export TF_VAR_aws_profile="${AWS_PROFILE}"
+fi
+
+# ------------------------------------------------------------
+# Terraform helpers
+# ------------------------------------------------------------
+
+terraform_init() {
+  cd "${TERRAFORM_DIR}"
+  terraform init
+}
+
+terraform_apply() {
+  terraform_init
+  terraform apply -auto-approve
+}
+
+terraform_destroy() {
+  terraform_init
+  terraform destroy -auto-approve
+}
+
+# ------------------------------------------------------------
+# SSM cleanup (used on destroy)
+# ------------------------------------------------------------
+
+cleanup_ssm_parameters() {
+  local prefix="/${RESOURCE_PREFIX}-ssm"
+
+  echo "Cleaning up SSM parameters under ${prefix}"
+
+  PARAMS=$(aws ssm describe-parameters \
+    --query "Parameters[?starts_with(Name, '${prefix}')].Name" \
+    --output text)
+
+  if [[ -z "${PARAMS}" ]]; then
+    echo "No SSM parameters found for ${prefix}"
+    return
+  fi
+
+  for p in ${PARAMS}; do
+    echo "Deleting SSM parameter: ${p}"
+    aws ssm delete-parameter --name "${p}"
+  done
+}
+
+cleanup_more_resources_if_any() {
+   echo "Cleaning up additional resources created by Terraform"
+   rm -rf ${TERRAFORM_DIR}/terraform_outputs.json || true
+   rm -rf ${TERRAFORM_DIR}/.terraform || true
+   rm -rf ${TERRAFORM_DIR}/.terraform.lock.hcl || true
+   rm -rf ${TERRAFORM_DIR}/terraform.tfstate* || true
+}
+
+# ------------------------------------------------------------
+# Actions
+# ------------------------------------------------------------
+
+create() {
+  echo "=== Creating Vault infrastructure ==="
+  terraform_apply
+}
+
+destroy() {
+  echo "=== Destroying Vault infrastructure ==="
+  terraform_destroy
+  cleanup_ssm_parameters
+  cleanup_more_resources_if_any
+}
+
+allow() {
+  echo "=== Updating allowed CIDRs ==="
+  "${ROOT_DIR}/scripts/cidr_update.sh" "$@"
+}
+
+seed-sample-secrets() {
+  echo "=== Seeding sample Vault secrets ==="
+  "${ROOT_DIR}/scripts/seed_vault.sh" "$@"
+}
+
+tokens() {
+  "${ROOT_DIR}/scripts/tokens.sh" "$@"
+}
+
+# ------------------------------------------------------------
+# Command dispatch
+# ------------------------------------------------------------
+
+case "${ACTION}" in
+  create) create ;;
+  destroy) destroy ;;
+  allow) allow "$@" ;;
+  seed-sample-secrets) seed-sample-secrets "$@" ;;
+  tokens) tokens "$@" ;;
+  *)
+    echo "Usage:"
+    echo "  ./helper/vault.sh create"
+    echo "  ./helper/vault.sh destroy"
+    echo "  ./helper/vault.sh allow <CIDR>"
+    echo "  ./helper/vault.sh seed-sample-secrets"
+    echo "  ./helper/vault.sh tokens [root|demo]"
+    exit 1
+    ;;
+esac
