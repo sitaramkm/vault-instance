@@ -144,6 +144,8 @@ cleanup_more_resources_if_any() {
    rm -rf ${TERRAFORM_DIR}/.terraform || true
    rm -rf ${TERRAFORM_DIR}/.terraform.lock.hcl || true
    rm -rf ${TERRAFORM_DIR}/terraform.tfstate* || true
+   rm -rf ${ROOT_DIR}/secrets-hub-config.txt || true
+   rm -rf ${ROOT_DIR}/vault_info.env || true
 }
 
 # ------------------------------------------------------------
