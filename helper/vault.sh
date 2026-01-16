@@ -12,7 +12,6 @@ set -euo pipefail
 #
 # Conventions:
 #   - common.env        → shared config (committed)
-#   - aws.env           → AWS identity + region (gitignored)
 #   - secrets-hub.env   → future use (gitignored)
 # ------------------------------------------------------------
 
@@ -33,18 +32,14 @@ if [[ ! -f "${ROOT_DIR}/common.env" ]]; then
 fi
 source "${ROOT_DIR}/common.env"
 
-if [[ -f "${ROOT_DIR}/aws.env" ]]; then
-  source "${ROOT_DIR}/aws.env"
-fi
-
-# ------------------------------------------------------------
+  # ------------------------------------------------------------
 # Validate required variables
 # ------------------------------------------------------------
 
 : "${RESOURCE_PREFIX:?RESOURCE_PREFIX must be set in common.env}"
-: "${TF_VAR_zone_id:?TF_VAR_zone_id must be set in aws.env}"
-: "${TF_VAR_domain_name:?TF_VAR_domain_name must be set in aws.env}"
-: "${TF_VAR_owner:?TF_VAR_owner must be set in aws.env}"
+: "${TF_VAR_zone_id:?TF_VAR_zone_id must be set in common.env}"
+: "${TF_VAR_domain_name:?TF_VAR_domain_name must be set in common.env}"
+: "${TF_VAR_owner:?TF_VAR_owner must be set in common.env}"
 
 # Terraform variable injection
 export TF_VAR_resource_prefix="${RESOURCE_PREFIX}"
@@ -79,7 +74,7 @@ awscli() {
 REGION="${AWS_REGION:-$(aws configure get region)}"
 
 if [[ -z "${REGION}" ]]; then
-  echo "ERROR: AWS region not set. Define AWS_REGION in aws.env"
+  echo "ERROR: AWS region not set. Define AWS_REGION in common.env"
   exit 1
 fi
 

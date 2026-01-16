@@ -14,10 +14,6 @@ if [[ ! -f "${ROOT_DIR}/common.env" ]]; then
 fi
 source "${ROOT_DIR}/common.env"
 
-if [[ -f "${ROOT_DIR}/aws.env" ]]; then
-  source "${ROOT_DIR}/aws.env"
-fi
-
 : "${RESOURCE_PREFIX:?RESOURCE_PREFIX must be set in common.env}"
 
 if [[ -n "${AWS_PROFILE:-}" ]]; then
