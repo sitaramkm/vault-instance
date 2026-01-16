@@ -190,23 +190,42 @@ PY
   terraform apply -var "allowed_additional_cidrs=${CIDRS_JSON}" -auto-approve
 }
 
-seed-sample-secrets() {
+create_sample_secrets() {
   echo "=== Seeding sample Vault secrets ==="
   "${ROOT_DIR}/scripts/seed_vault.sh" "$@"
 }
 
-get-token() {
+get_token() {
   local token
-  token="$("${ROOT_DIR}/scripts/tokens.sh")"
+  local PREFIX="/${RESOURCE_PREFIX}-ssm"
+  local VAULT_INFO_FILE="${ROOT_DIR}/vault_info.env"
+
+  token="$(awscli ssm get-parameter \
+    --name "${PREFIX}/root_token" \
+    --with-decryption \
+    --query Parameter.Value \
+    --output text)"
 
   if [[ -z "$token" ]]; then
     echo "ERROR: Token retrieval returned empty value"
     exit 1
-  fi  
+  fi
+
   echo "Retrieved Vault token:"
   echo "$token"
-  echo "export VAULT_TOKEN=\"$token\"" >> "${ROOT_DIR}/vault_info.env"
+
+  # Ensure file exists
+  touch "${VAULT_INFO_FILE}"
+
+  # Remove existing VAULT_TOKEN line if present
+  sed -i.bak '/^export VAULT_TOKEN=/d' "${VAULT_INFO_FILE}"
+
+  # Append fresh token
+  echo "export VAULT_TOKEN=\"$token\"" >> "${VAULT_INFO_FILE}"
+
+  rm -f "${VAULT_INFO_FILE}.bak"
 }
+
 
 # ------------------------------------------------------------
 # Command dispatch
@@ -216,8 +235,8 @@ case "${ACTION}" in
   create) create ;;
   destroy) destroy ;;
   allow) allow "$@" ;;
-  create-sample-secrets) seed-sample-secrets "$@" ;;
-  get-token) get-token "$@" ;;
+  create-sample-secrets) create_sample_secrets "$@" ;;
+  get-token) get_token "$@" ;;
   *)
     echo "Usage:"
     echo "  ./helper/vault.sh create"

@@ -127,11 +127,16 @@ for i in $(seq 1 "${NUM_OF_SAMPLE_SECRETS}"); do
 done
 echo -e "✅ Seeded ${NUM_OF_SAMPLE_SECRETS} secrets."
 
-# --- Summary ---
-echo ""
-echo -e "Use the following info in CyberArk Secrets Hub to register Vault."
-echo -e "Vault address      : ${VAULT_ADDR}"
-echo -e "Mount path         : ${MOUNT_PATH}"
-echo -e "Role name          : ${ROLE_NAME}"
-echo -e "Authentication path: ${JWT_PATH}"
-echo -e "Issuer (exact)     : ${issuer}"  
+SUMMARY_FILE="${ROOT_DIR}/secrets-hub-config.txt"
+
+{
+  echo ""
+  echo "Use the following info in CyberArk Secrets Hub to register Vault."
+  echo "Vault address      : ${VAULT_ADDR}"
+  echo "Mount path         : ${MOUNT_PATH}"
+  echo "Role name          : ${ROLE_NAME}"
+  echo "Authentication path: ${JWT_PATH}"
+  echo "Issuer             : ${issuer}"
+} | tee "${SUMMARY_FILE}"
+
+echo -e "\nSummary written to: ${SUMMARY_FILE}"

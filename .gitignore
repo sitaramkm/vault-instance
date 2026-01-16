@@ -38,6 +38,7 @@ terraform.rc
 
 .terraform.lock.hcl
 secrets-hub.env
+secrets-hub-config.txt
 common.env
 vault_info.env
 terraform_outputs.json
