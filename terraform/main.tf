@@ -25,17 +25,23 @@ provider "aws" {
   profile = var.aws_profile
 }
 
+
 locals {
-  tags = merge({ Name = "${var.resource_prefix}-vault-instance" }, var.tags)
+  tags = merge(
+    {
+      Owner = var.owner
+      Name  = "${var.resource_prefix}-vault-instance"
+    },
+    var.tags
+  )
 }
 
 module "tls_dns" {
   source = "./modules/tls_dns"
 
-  domain_name       = var.domain_name
-  zone_id           = var.zone_id
-  configure_route53 = var.configure_route53
-  tags              = local.tags
+  domain_name = var.domain_name
+  zone_id     = var.zone_id
+  tags        = local.tags
 }
 
 # -----------------------------
@@ -288,7 +294,6 @@ resource "aws_lb_listener" "https" {
 # Route53 Alias A record -> ALB
 # -----------------------------
 resource "aws_route53_record" "vault" {
-  count   = var.configure_route53 ? 1 : 0
   zone_id = var.zone_id
   name    = var.domain_name
   type    = "A"

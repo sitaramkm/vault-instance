@@ -123,7 +123,7 @@ echo -e "Seeding ${NUM_OF_SAMPLE_SECRETS} secrets into '${SECRET_PATH}'..."
 for i in $(seq 1 "${NUM_OF_SAMPLE_SECRETS}"); do
   k=$(openssl rand -hex 8)
   v=$(openssl rand -hex 16)
-  vault kv put -address="${VAULT_ADDR}" -mount="${MOUNT_PATH}" "${SECRETS_NAME}/${i}" "key=${k}" "value=${v}" >/dev/null || true
+  vault kv put -address="${VAULT_ADDR}" -mount="${MOUNT_PATH}" "${SECRETS_NAME}/${i}" "key=${k}" "value=${v}" >/dev/null
 done
 echo -e "✅ Seeded ${NUM_OF_SAMPLE_SECRETS} secrets."
 

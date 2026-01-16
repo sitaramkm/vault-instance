@@ -42,6 +42,9 @@ fi
 # ------------------------------------------------------------
 
 : "${RESOURCE_PREFIX:?RESOURCE_PREFIX must be set in common.env}"
+: "${TF_VAR_zone_id:?TF_VAR_zone_id must be set in aws.env}"
+: "${TF_VAR_domain_name:?TF_VAR_domain_name must be set in aws.env}"
+: "${TF_VAR_owner:?TF_VAR_owner must be set in aws.env}"
 
 # Terraform variable injection
 export TF_VAR_resource_prefix="${RESOURCE_PREFIX}"
@@ -88,8 +91,6 @@ echo
 # ------------------------------------------------------------
 # Terraform variable injection
 # ------------------------------------------------------------
-
-export TF_VAR_resource_prefix="${RESOURCE_PREFIX}"
 
 if [[ -n "${AWS_REGION:-}" ]]; then
   export TF_VAR_region="${AWS_REGION}"
@@ -156,7 +157,10 @@ cleanup_more_resources_if_any() {
 
 create() {
   echo "=== Creating Vault infrastructure ==="
-  terraform_apply
+  terraform_apply || {
+    echo "Terraform apply failed; aborting."
+    exit 1
+  }
   echo "=== Retrieving Vault info ==="
   cd "${TERRAFORM_DIR}"
   terraform output -json > ${TERRAFORM_DIR}/terraform_outputs.json
@@ -187,6 +191,7 @@ print(json.dumps(sys.argv[1:]))
 PY
 )
   cd "${TERRAFORM_DIR}"
+  echo "Applying allowed_additional_cidrs=${CIDRS_JSON}"
   terraform apply -var "allowed_additional_cidrs=${CIDRS_JSON}" -auto-approve
 }
 
@@ -216,14 +221,14 @@ case "${ACTION}" in
   create) create ;;
   destroy) destroy ;;
   allow) allow "$@" ;;
-  seed-sample-secrets) seed-sample-secrets "$@" ;;
+  create-sample-secrets) seed-sample-secrets "$@" ;;
   get-token) get-token "$@" ;;
   *)
     echo "Usage:"
     echo "  ./helper/vault.sh create"
     echo "  ./helper/vault.sh destroy"
     echo "  ./helper/vault.sh allow <CIDR>"
-    echo "  ./helper/vault.sh seed-sample-secrets"
+    echo "  ./helper/vault.sh create-sample-secrets"
     echo "  ./helper/vault.sh get-token"
     exit 1
     ;;

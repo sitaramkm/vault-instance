@@ -38,15 +38,15 @@ variable "vault_version" {
   default = "1.21.2"
 }
 
-variable "tags" {
-  type    = map(string)
-  default = {}
+variable "owner" {
+  type        = string
+  description = "Owner tag for all resources"
 }
 
-variable "configure_route53" {
-  type        = bool
-  description = "Whether Terraform should manage Route53 records and ACM DNS validation"
-  default     = true
+variable "tags" {
+  type        = map(string)
+  description = "Additional tags to apply to all resources"
+  default     = {}
 }
 
 variable "enable_ssm_access" {
@@ -54,3 +54,4 @@ variable "enable_ssm_access" {
   description = "Enable SSM Session Manager access to the instance. Manually figure out SSH if you set this to false"
   default     = true
 }
+
